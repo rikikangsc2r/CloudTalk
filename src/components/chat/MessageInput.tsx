@@ -32,13 +32,20 @@ export function MessageInput({ chatId }: { chatId: string }) {
         const updatedChats = data.chats.map(chat => {
             if (chat.id === chatId) {
                 const updatedMessages = [...(chat.messages || []), newMessage];
+                const otherUserId = chat.users.find(uid => uid !== user.uid);
+                const unreadCounts = { ...(chat.unreadCounts || {}) };
+                if (otherUserId) {
+                    unreadCounts[otherUserId] = (unreadCounts[otherUserId] || 0) + 1;
+                }
+
                 return { 
                     ...chat, 
                     messages: updatedMessages,
                     lastMessage: {
                         text: newMessage.text || 'Image',
                         timestamp: newMessage.timestamp,
-                    }
+                    },
+                    unreadCounts,
                 };
             }
             return chat;

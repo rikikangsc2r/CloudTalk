@@ -35,6 +35,7 @@ function ChatListItem({ chat, allUsers }: { chat: Chat, allUsers: UserProfile[] 
   const otherUserId = chat.users.find(uid => uid !== user?.uid);
   const otherUser = allUsers.find(u => u.uid === otherUserId);
   const lastMessageTimestamp = chat.lastMessage?.timestamp ? new Date(chat.lastMessage.timestamp) : null;
+  const unreadCount = user ? chat.unreadCounts?.[user.uid] ?? 0 : 0;
 
   const handleDeleteChat = async () => {
     if (!data) return;
@@ -66,10 +67,15 @@ function ChatListItem({ chat, allUsers }: { chat: Chat, allUsers: UserProfile[] 
             pathname === `/chat/${chat.id}` && 'bg-accent'
         )}
       >
-        <Avatar className="h-12 w-12">
-          <AvatarImage src={otherUser?.photoURL} alt={otherUser?.displayName} />
-          <AvatarFallback>{otherUser?.displayName?.charAt(0) ?? 'U'}</AvatarFallback>
-        </Avatar>
+        <div className="relative">
+            <Avatar className="h-12 w-12">
+            <AvatarImage src={otherUser?.photoURL} alt={otherUser?.displayName} />
+            <AvatarFallback>{otherUser?.displayName?.charAt(0) ?? 'U'}</AvatarFallback>
+            </Avatar>
+            {unreadCount > 0 && (
+                <span className="absolute top-0 right-0 block h-3 w-3 rounded-full bg-green-500 ring-2 ring-card" />
+            )}
+        </div>
         <div className="flex-1 overflow-hidden">
           <div className="flex justify-between items-center">
             <h3 className="font-semibold truncate">{otherUser?.displayName ?? 'Unknown User'}</h3>
@@ -79,7 +85,7 @@ function ChatListItem({ chat, allUsers }: { chat: Chat, allUsers: UserProfile[] 
               </p>
             )}
           </div>
-          <p className="text-sm text-muted-foreground truncate">
+          <p className={cn("text-sm truncate", unreadCount > 0 ? "text-foreground font-medium" : "text-muted-foreground")}>
             {chat.lastMessage?.text ?? (chat.lastMessage?.imageUrl ? 'Image' : 'No messages yet')}
           </p>
         </div>

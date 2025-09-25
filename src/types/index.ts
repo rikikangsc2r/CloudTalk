@@ -15,6 +15,7 @@ export interface Chat {
   };
   createdAt: string;
   otherUser?: UserProfile;
+  unreadCounts?: { [userId: string]: number };
 }
 
 export interface Message {

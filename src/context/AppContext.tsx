@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useState, useEffect, ReactNode, useCallback, useRef } from 'react';
-import type { UserProfile, JsonBlobData } from '@/types';
+import type { UserProfile, JsonBlobData, Chat } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 import { usePathname } from 'next/navigation';
 
@@ -43,24 +43,35 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       if (!response.ok) {
         throw new Error('Failed to fetch data from JSONBlob');
       }
-      const blobData = await response.json();
+      const blobData: JsonBlobData = await response.json();
       
       if (isPolling && dataRef.current && user) {
         const previousData = dataRef.current;
         const currentChatId = pathname.split('/chat/')[1];
 
-        blobData.chats.forEach((newChat: any) => {
-          const oldChat = previousData.chats.find(c => c.id === newChat.id);
-          if (oldChat && newChat.messages.length > oldChat.messages.length) {
-            const lastNewMessage = newChat.messages[newChat.messages.length - 1];
-            if (lastNewMessage.senderId !== user.uid && newChat.id !== currentChatId) {
-               const sender = blobData.users.find((u: UserProfile) => u.uid === lastNewMessage.senderId);
-               toast({
-                 title: `New message from ${sender?.displayName || 'Unknown'}`,
-                 description: lastNewMessage.text || 'Sent an image',
-               });
+        // Process unread count updates
+        blobData.chats.forEach((newChat: Chat) => {
+            const oldChat = previousData.chats.find(c => c.id === newChat.id);
+            if (!oldChat && newChat.users.includes(user.uid)) {
+                // It's a new chat for this user
+                const otherUser = blobData.users.find(u => u.uid === newChat.users.find(uid => uid !== user.uid));
+                toast({
+                    title: `New chat from ${otherUser?.displayName || 'Unknown'}`,
+                    description: 'You have been added to a new conversation.',
+                });
+            } else if (oldChat) {
+                const oldUnread = oldChat.unreadCounts?.[user.uid] ?? 0;
+                const newUnread = newChat.unreadCounts?.[user.uid] ?? 0;
+                const lastNewMessage = newChat.messages.length > 0 ? newChat.messages[newChat.messages.length - 1] : null;
+
+                if (newUnread > oldUnread && lastNewMessage && newChat.id !== currentChatId) {
+                    const sender = blobData.users.find((u: UserProfile) => u.uid === lastNewMessage.senderId);
+                    toast({
+                        title: `New message from ${sender?.displayName || 'Unknown'}`,
+                        description: lastNewMessage.text || 'Sent an image',
+                    });
+                }
             }
-          }
         });
       }
 

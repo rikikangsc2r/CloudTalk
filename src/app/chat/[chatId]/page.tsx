@@ -4,12 +4,31 @@ import { useJsonBlob } from '@/hooks/useJsonBlob';
 import { useAuth } from '@/hooks/useAuth';
 import type { UserProfile } from '@/types';
 import { notFound, useParams } from 'next/navigation';
+import { useEffect } from 'react';
 
 export default function ChatPage() {
   const params = useParams();
   const chatId = params.chatId as string;
   const { user, loading: isUserLoading } = useAuth();
-  const { data, loading: isChatLoading } = useJsonBlob();
+  const { data, loading: isChatLoading, updateData } = useJsonBlob();
+
+  useEffect(() => {
+    if (user && data && chatId) {
+        const chat = data.chats.find(c => c.id === chatId);
+        if (chat && chat.unreadCounts?.[user.uid] && chat.unreadCounts[user.uid] > 0) {
+            const updatedChats = data.chats.map(c => {
+                if (c.id === chatId) {
+                    const newUnreadCounts = { ...(c.unreadCounts || {}) };
+                    newUnreadCounts[user.uid] = 0;
+                    return { ...c, unreadCounts: newUnreadCounts };
+                }
+                return c;
+            });
+            // Fire-and-forget update, no need to await
+            updateData({ ...data, chats: updatedChats });
+        }
+    }
+  }, [user, data, chatId, updateData]);
 
   if (isUserLoading || isChatLoading) {
     // You can return a loading skeleton here

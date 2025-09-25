@@ -75,6 +75,7 @@ export function NewChatDialog() {
                 users: [user.uid, otherUser.uid],
                 messages: [],
                 createdAt: new Date().toISOString(),
+                unreadCounts: { [user.uid]: 0, [otherUser.uid]: 0 },
             };
             const updatedData = { ...data, chats: [...data.chats, newChat] };
             await updateData(updatedData);
