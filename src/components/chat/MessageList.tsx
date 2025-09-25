@@ -29,11 +29,11 @@ export function MessageList({ chatId }: { chatId: string }) {
   const messages = chat?.messages?.sort((a,b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()) || [];
 
   useEffect(() => {
-    if (messages.length > 0 && listRef.current) {
+    if (!loading && messages.length > 0 && listRef.current) {
         // A short timeout ensures the list has rendered before we scroll.
         setTimeout(() => {
             listRef.current?.scrollToItem(messages.length - 1, 'end');
-        }, 50);
+        }, 100);
     }
   }, [messages.length, chatId, loading]);
 
