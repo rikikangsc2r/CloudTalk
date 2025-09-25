@@ -36,7 +36,7 @@ export function MessageList({ chatId }: { chatId: string }) {
     if (messages.length > 0) {
       setIsScrolling(true);
     }
-  }, [chatId, messages.length]); // Depend on messages.length to trigger when messages appear
+  }, [chatId]); // Depend on chatId to reset state
 
   useEffect(() => {
     if (messages.length > 0 && listRef.current) {
@@ -62,8 +62,11 @@ export function MessageList({ chatId }: { chatId: string }) {
                 scrollToBottom('smooth');
             }, 50);
         }
+    } else if (messages.length === 0 && isScrolling) {
+        // If there are no messages, don't show the spinner.
+        setIsScrolling(false);
     }
-  }, [messages.length, chatId]); // Depend on messages.length to scroll on new messages
+  }, [messages.length, chatId, isScrolling]); // Rerun when messages appear
 
   if (loading && !data) {
     return (
