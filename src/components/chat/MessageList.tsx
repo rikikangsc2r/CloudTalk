@@ -11,7 +11,7 @@ import { useIsMobile } from '@/hooks/use-mobile';
 const Row = ({ index, style, data }: { index: number, style: React.CSSProperties, data: any[] }) => {
     const message = data[index];
     return (
-        <div style={style} className='px-4 py-2'>
+        <div style={style} className='px-4 py-1'>
             <MessageBubble message={message} />
         </div>
     );
@@ -27,10 +27,13 @@ export function MessageList({ chatId }: { chatId: string }) {
   const messages = chat?.messages?.sort((a,b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()) || [];
 
   useEffect(() => {
-    if (listRef.current) {
-        listRef.current.scrollToItem(messages.length - 1, 'end');
+    if (messages.length > 0 && listRef.current) {
+        // We use a timeout to ensure the list has had time to render before we scroll.
+        setTimeout(() => {
+            listRef.current?.scrollToItem(messages.length - 1, 'end');
+        }, 50);
     }
-  }, [messages.length, loading]);
+  }, [messages.length, chatId, loading]);
 
   if (loading) {
     return (
