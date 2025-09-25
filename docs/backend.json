@@ -1,0 +1,238 @@
+{
+  "entities": {
+    "User": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "User",
+      "type": "object",
+      "description": "Represents a user of the CloudTalk application.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the User entity."
+        },
+        "googleId": {
+          "type": "string",
+          "description": "The user's Google ID."
+        },
+        "name": {
+          "type": "string",
+          "description": "The user's display name."
+        },
+        "email": {
+          "type": "string",
+          "description": "The user's email address.",
+          "format": "email"
+        },
+        "profilePicture": {
+          "type": "string",
+          "description": "URL of the user's profile picture.",
+          "format": "uri"
+        },
+        "contacts": {
+          "type": "array",
+          "description": "References to Contact. (Relationship: User 1:N Contact)",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "id",
+        "googleId",
+        "name",
+        "email"
+      ]
+    },
+    "Contact": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Contact",
+      "type": "object",
+      "description": "Represents a contact of a user.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Contact entity."
+        },
+        "userId": {
+          "type": "string",
+          "description": "Reference to User. (Relationship: User 1:N Contact)"
+        },
+        "contactUserId": {
+          "type": "string",
+          "description": "Reference to User. (Relationship: Contact 1:1 User)"
+        },
+        "displayName": {
+          "type": "string",
+          "description": "The display name of the contact as it appears in the user's contact list."
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "contactUserId",
+        "displayName"
+      ]
+    },
+    "ChatMessage": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "ChatMessage",
+      "type": "object",
+      "description": "Represents a chat message between users.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the ChatMessage entity."
+        },
+        "senderId": {
+          "type": "string",
+          "description": "Reference to User. (Relationship: User 1:N ChatMessage as Sender)"
+        },
+        "receiverId": {
+          "type": "string",
+          "description": "Reference to User. (Relationship: User 1:N ChatMessage as Receiver)"
+        },
+        "content": {
+          "type": "string",
+          "description": "The content of the message."
+        },
+        "timestamp": {
+          "type": "string",
+          "description": "The timestamp of the message.",
+          "format": "date-time"
+        },
+        "mediaUrl": {
+          "type": "string",
+          "description": "URL of the media file if the message contains media.",
+          "format": "uri"
+        },
+        "chatRoomId": {
+          "type": "string",
+          "description": "Reference to ChatRoom. (Relationship: ChatRoom 1:N ChatMessage)"
+        }
+      },
+      "required": [
+        "id",
+        "senderId",
+        "receiverId",
+        "content",
+        "timestamp",
+        "chatRoomId"
+      ]
+    },
+    "ChatRoom": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "ChatRoom",
+      "type": "object",
+      "description": "Represents a chat room containing messages between users.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the ChatRoom entity."
+        },
+        "participants": {
+          "type": "array",
+          "description": "References to Users. (Relationship: ChatRoom N:N User)",
+          "items": {
+            "type": "string"
+          }
+        },
+        "lastMessage": {
+          "type": "string",
+          "description": "The content of the last message sent in the chat room."
+        },
+        "lastMessageTimestamp": {
+          "type": "string",
+          "description": "The timestamp of the last message sent in the chat room.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "participants"
+      ]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password",
+      "anonymous"
+    ]
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "/users/{userId}",
+        "definition": {
+          "entityName": "User",
+          "schema": {
+            "$ref": "#/backend/entities/User"
+          },
+          "description": "Stores user profile information.  Path-based ownership. Includes 'userId' as the document ID.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier for the user."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/contacts/{contactId}",
+        "definition": {
+          "entityName": "Contact",
+          "schema": {
+            "$ref": "#/backend/entities/Contact"
+          },
+          "description": "Stores contacts for a specific user. Path-based ownership under the user's document. Includes 'userId' for the owner and 'contactId' as the document ID.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier for the user (owner of the contact)."
+            },
+            {
+              "name": "contactId",
+              "description": "The unique identifier for the contact."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/chatRooms/{chatRoomId}",
+        "definition": {
+          "entityName": "ChatRoom",
+          "schema": {
+            "$ref": "#/backend/entities/ChatRoom"
+          },
+          "description": "Stores chat room information, including participants.  The `chatRoomId` acts as a unique identifier for the room.  The participants array lists the user IDs involved in the chat room.",
+          "params": [
+            {
+              "name": "chatRoomId",
+              "description": "The unique identifier for the chat room."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/chatRooms/{chatRoomId}/messages/{messageId}",
+        "definition": {
+          "entityName": "ChatMessage",
+          "schema": {
+            "$ref": "#/backend/entities/ChatMessage"
+          },
+          "description": "Stores chat messages within a specific chat room. Includes denormalized 'senderId' and 'receiverId' for authorization independence. 'chatRoomId' links the message to the chat room, and 'messageId' is the unique identifier for the message.",
+          "params": [
+            {
+              "name": "chatRoomId",
+              "description": "The unique identifier for the chat room."
+            },
+            {
+              "name": "messageId",
+              "description": "The unique identifier for the chat message."
+            }
+          ]
+        }
+      }
+    ],
+    "reasoning": "The Firestore structure is designed to support a real-time chat application ('CloudTalk') with Google account authentication. It prioritizes authorization independence via denormalization and structural segregation for secure list operations. User data and contacts are stored under user-specific paths for clear ownership and access control. Chat rooms contain messages, and participants' information is denormalized in chat message for authorization independence and efficiency.\n\n**Authorization Independence**: The structure achieves Authorization Independence by storing user-specific data (contacts) under the `/users/{userId}` path and denormalizing participant information (senderId, receiverId) within the `ChatMessage` documents. This avoids `get()` calls in security rules, ensuring atomic operations.\n\n**QAPs (Rules are not Filters)**: The design supports secure `list` operations by segregating data based on ownership and access. Contacts are stored under the user's document, ensuring only the user can list their contacts. Chat messages within a `ChatRoom` also implicitly grant access to the participants in the chat, as the `chatRoomId` acts as an authorization context.\n\n**Global Roles (DBAC):** No global roles are specified, access is managed through user ownership and chat room participation."
+  }
+}
