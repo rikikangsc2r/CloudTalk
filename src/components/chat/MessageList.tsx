@@ -6,9 +6,7 @@ import { Skeleton } from '../ui/skeleton';
 import { VariableSizeList as List } from 'react-window';
 import AutoSizer from 'react-virtualized-auto-sizer';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { cn } from '@/lib/utils';
 import { Loader2 } from 'lucide-react';
-
 
 const Row = ({ index, style, data }: { index: number, style: React.CSSProperties, data: any[] }) => {
     const message = data[index];
@@ -21,7 +19,6 @@ const Row = ({ index, style, data }: { index: number, style: React.CSSProperties
     );
 };
 
-
 export function MessageList({ chatId }: { chatId: string }) {
   const { data, loading } = useJsonBlob();
   const listRef = useRef<List>(null);
@@ -33,9 +30,13 @@ export function MessageList({ chatId }: { chatId: string }) {
   const messages = chat?.messages?.sort((a,b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()) || [];
 
   useEffect(() => {
-    // Reset initial load flag when chat ID changes, to trigger loading overlay again
+    // This effect runs only when the chatId changes, resetting the component for a new chat.
     initialLoadRef.current = true;
-  }, [chatId]);
+    // We show the loading spinner as soon as the chat ID changes and there are messages to be loaded.
+    if (messages.length > 0) {
+      setIsScrolling(true);
+    }
+  }, [chatId, messages.length]); // Depend on messages.length to trigger when messages appear
 
   useEffect(() => {
     if (messages.length > 0 && listRef.current) {
@@ -44,27 +45,27 @@ export function MessageList({ chatId }: { chatId: string }) {
         };
 
         if (initialLoadRef.current) {
-            // This block now correctly handles the initial load for a chat
-            setIsScrolling(true);
-            // Use timeout to ensure the list is rendered before we scroll
+            // This block handles the initial load for a chat.
+            // A short delay ensures react-window has rendered before we try to scroll.
             setTimeout(() => {
                 scrollToBottom();
-                // A second timeout to remove the overlay after scrolling is complete
+                // A second delay removes the overlay *after* the scroll has completed.
                 setTimeout(() => {
                     setIsScrolling(false);
                     initialLoadRef.current = false;
-                }, 300); // This delay allows the scroll to finish
-            }, 50); // This short delay allows react-window to calculate sizes
+                }, 300); // Adjust this timing if needed, allows scroll animation to finish.
+            }, 100); 
         } else {
-            // For new incoming messages, scroll smoothly without the overlay
+            // This block handles new incoming messages smoothly without an overlay.
+            // A short delay ensures the new item is rendered before smooth scrolling.
             setTimeout(() => {
                 scrollToBottom('smooth');
             }, 50);
         }
     }
-  }, [messages]); // This effect now correctly depends only on messages array changes
+  }, [messages.length, chatId]); // Depend on messages.length to scroll on new messages
 
-  if (loading) {
+  if (loading && !data) {
     return (
         <div className="flex-1 p-4 space-y-4">
              <Skeleton className="h-10 w-3/4 rounded-lg" />
@@ -103,7 +104,7 @@ export function MessageList({ chatId }: { chatId: string }) {
                 ref={listRef}
                 height={height}
                 itemCount={messages.length}
-                itemSize={index => estimateSize(messages[index])} // Dynamic item size
+                itemSize={index => estimateSize(messages[index])}
                 width={width}
                 itemData={messages}
             >
