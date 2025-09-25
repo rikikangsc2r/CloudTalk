@@ -11,7 +11,7 @@ interface AppContextType {
   data: JsonBlobData | null;
   loading: boolean;
   error: Error | null;
-  login: (user: UserProfile) => Promise<void>;
+  login: (username: string) => Promise<void>;
   logout: () => void;
   fetchData: () => Promise<void>;
   updateData: (newData: JsonBlobData) => Promise<void>;
@@ -45,7 +45,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   }, [toast]);
   
   const updateData = async (newData: JsonBlobData) => {
-    setLoading(true);
+    // Set loading to true only for the update operation, not for the whole app
+    // setLoading(true); 
     try {
         const response = await fetch(JSONBLOB_API_URL, {
             method: 'PUT',
@@ -66,7 +67,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         console.error(err);
         await fetchData(); // Re-fetch to revert optimistic update on failure
     } finally {
-        setLoading(false);
+       // setLoading(false);
     }
   };
 
@@ -79,10 +80,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     fetchData();
   }, [fetchData]);
 
-  const login = async (userToLogin: UserProfile) => {
-    // In a real app, you'd fetch the user from your backend/API
-    // For this demo, we'll check if the user exists in our JSONBlob
-    
+  const login = async (username: string) => {
     // Ensure data, data.users, and data.chats are initialized
     const currentData = data || { users: [], chats: [] };
     if (!currentData.users) {
@@ -93,10 +91,16 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }
 
     try {
-        let userExists = currentData.users.some(u => u.uid === userToLogin.uid);
+        let userToLogin = currentData.users.find(u => u.displayName.toLowerCase() === username.toLowerCase());
 
-        if (!userExists) {
-            // Add new user to the blob
+        if (!userToLogin) {
+            // Create a new user
+            userToLogin = {
+                uid: Date.now().toString(),
+                displayName: username,
+                email: `${username.toLowerCase()}@example.com`,
+                photoURL: `https://picsum.photos/seed/${username}/100/100`,
+            };
             const updatedUsers = [...currentData.users, userToLogin];
             await updateData({ ...currentData, users: updatedUsers });
         }
@@ -106,6 +110,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     } catch (error) {
         console.error("Error during login:", error);
         toast({ title: 'Error', description: 'Could not log in. Please try again.' });
+        throw error;
     }
   };
 
