@@ -7,8 +7,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { MessageSquareText } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 
-
-export default function LoginPage() {
+function LoginContent() {
   const { user, loading } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -41,9 +40,31 @@ export default function LoginPage() {
 
   return (
     <main className="flex min-h-screen w-full items-center justify-center bg-background p-4">
-      <Suspense>
-        <LoginCard />
-      </Suspense>
+      <LoginCard />
     </main>
   );
+}
+
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+        <main className="flex min-h-screen w-full items-center justify-center bg-background p-4">
+         <Card className="w-full max-w-sm animate-pulse">
+            <CardHeader className="text-center">
+                <div className="mx-auto bg-muted text-muted-foreground p-3 rounded-full w-fit mb-4">
+                    <MessageSquareText size={32} />
+                </div>
+              <CardTitle className="text-2xl font-headline">CloudTalk</CardTitle>
+              <CardDescription>Connecting you to the cloud...</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Skeleton className="h-10 w-full rounded-md bg-muted" />
+            </CardContent>
+          </Card>
+       </main>
+    }>
+        <LoginContent />
+      </Suspense>
+  )
 }
