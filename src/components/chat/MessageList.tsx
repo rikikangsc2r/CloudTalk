@@ -27,23 +27,38 @@ export function MessageList({ chatId }: { chatId: string }) {
   const listRef = useRef<List>(null);
   const [isScrolling, setIsScrolling] = useState(false);
   const isMobile = useIsMobile();
+  const initialLoadRef = useRef(true);
   
   const chat = data?.chats.find(c => c.id === chatId);
   const messages = chat?.messages?.sort((a,b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()) || [];
 
   useEffect(() => {
+    // Reset initial load flag when chat ID changes
+    initialLoadRef.current = true;
+  }, [chatId]);
+
+  useEffect(() => {
     if (messages.length > 0 && listRef.current) {
-        setIsScrolling(true);
-        // By adding a minimal timeout, we push the scrolling action to the end of the
-        // event loop. This ensures that the DOM has been updated with the new messages
-        // before we try to scroll, preventing a race condition.
-        setTimeout(() => {
+        const scrollToBottom = (behavior: ScrollBehavior = 'auto') => {
             listRef.current?.scrollToItem(messages.length - 1, 'end');
-            // Add a second timeout to remove the overlay after the scroll animation is likely complete
+        };
+
+        if (initialLoadRef.current) {
+            setIsScrolling(true);
             setTimeout(() => {
-                setIsScrolling(false);
-            }, 300); // 300ms should be enough for the scroll animation
-        }, 50); // A small delay to ensure rendering is complete
+                scrollToBottom();
+                setTimeout(() => {
+                    setIsScrolling(false);
+                    initialLoadRef.current = false;
+                }, 300);
+            }, 50);
+        } else {
+            // For new messages, scroll smoothly without the overlay
+            // A small timeout helps ensure the new item is rendered
+            setTimeout(() => {
+                scrollToBottom('smooth');
+            }, 50);
+        }
     }
   }, [messages, chatId]);
 
