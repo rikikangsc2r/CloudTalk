@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useAuth } from '@/hooks/useAuth'
 import { useJsonBlob } from '@/hooks/useJsonBlob'
 import type { UserProfile, Chat } from '@/types'
@@ -23,31 +23,53 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/
 export function NewChatDialog() {
   const { user } = useAuth()
   const { data, loading, updateData } = useJsonBlob();
-  const [users, setUsers] = useState<UserProfile[]>([])
   const [searchTerm, setSearchTerm] = useState('')
   const [open, setOpen] = useState(false)
   const router = useRouter()
   const { toast } = useToast()
 
-  useEffect(() => {
-    if (data?.users && user) {
-        setUsers(data.users.filter(u => u.uid !== user.uid));
-    }
-  }, [data, user])
+  const recentlyActiveUsers = useMemo(() => {
+    if (!data || !data.chats || !data.users) return [];
+
+    const lastActivity: { [userId: string]: number } = {};
+
+    data.chats.forEach(chat => {
+      if (chat.lastMessage?.timestamp) {
+        const timestamp = new Date(chat.lastMessage.timestamp).getTime();
+        chat.users.forEach(userId => {
+          if (userId !== user?.uid) {
+            if (!lastActivity[userId] || timestamp > lastActivity[userId]) {
+              lastActivity[userId] = timestamp;
+            }
+          }
+        });
+      }
+    });
+
+    const sortedUserIds = Object.keys(lastActivity).sort((a, b) => lastActivity[b] - lastActivity[a]);
+    
+    const activeUsers = sortedUserIds
+      .map(userId => data.users.find(u => u.uid === userId))
+      .filter((u): u is UserProfile => !!u);
+      
+    // Add other users who might not have activity yet
+    const otherUsers = data.users.filter(u => u.uid !== user?.uid && !lastActivity[u.uid]);
+
+    return [...activeUsers, ...otherUsers].slice(0, 10);
+  }, [data, user]);
+
 
   const handleCreateChat = async (otherUser: UserProfile) => {
     if (!user || !data) return
     
-    // Check if a chat already exists
     const existingChat = data.chats.find(chat => 
-      chat.users.includes(user.uid) && chat.users.includes(otherUser.uid)
+      chat.users.length === 2 && chat.users.includes(user.uid) && chat.users.includes(otherUser.uid)
     );
     
     try {
         if (existingChat) {
             router.push(`/chat/${existingChat.id}`);
         } else {
-            // Create a new chat
             const newChat: Chat = {
                 id: Date.now().toString(),
                 users: [user.uid, otherUser.uid],
@@ -65,7 +87,7 @@ export function NewChatDialog() {
     }
   }
 
-  const filteredUsers = users.filter(u =>
+  const filteredUsers = recentlyActiveUsers.filter(u =>
     u.displayName.toLowerCase().includes(searchTerm.toLowerCase())
   )
 

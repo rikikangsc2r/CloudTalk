@@ -1,8 +1,9 @@
 'use client';
 
-import React, { createContext, useState, useEffect, ReactNode, useCallback } from 'react';
+import React, { createContext, useState, useEffect, ReactNode, useCallback, useRef } from 'react';
 import type { UserProfile, JsonBlobData } from '@/types';
 import { useToast } from '@/hooks/use-toast';
+import { usePathname } from 'next/navigation';
 
 const JSONBLOB_API_URL = 'https://jsonblob.com/api/jsonBlob/1420617466761109504';
 
@@ -25,28 +26,59 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
   const { toast } = useToast();
+  const dataRef = useRef(data);
+  const pathname = usePathname();
 
-  const fetchData = useCallback(async () => {
-    setLoading(true);
+
+  useEffect(() => {
+    dataRef.current = data;
+  }, [data]);
+
+  const fetchData = useCallback(async (isPolling = false) => {
+    if (!isPolling) {
+      setLoading(true);
+    }
     try {
       const response = await fetch(JSONBLOB_API_URL);
       if (!response.ok) {
         throw new Error('Failed to fetch data from JSONBlob');
       }
       const blobData = await response.json();
+      
+      if (isPolling && dataRef.current && user) {
+        const previousData = dataRef.current;
+        const currentChatId = pathname.split('/chat/')[1];
+
+        blobData.chats.forEach((newChat: any) => {
+          const oldChat = previousData.chats.find(c => c.id === newChat.id);
+          if (oldChat && newChat.messages.length > oldChat.messages.length) {
+            const lastNewMessage = newChat.messages[newChat.messages.length - 1];
+            if (lastNewMessage.senderId !== user.uid && newChat.id !== currentChatId) {
+               const sender = blobData.users.find((u: UserProfile) => u.uid === lastNewMessage.senderId);
+               toast({
+                 title: `New message from ${sender?.displayName || 'Unknown'}`,
+                 description: lastNewMessage.text || 'Sent an image',
+               });
+            }
+          }
+        });
+      }
+
       setData(blobData);
     } catch (err: any) {
       setError(err);
-      toast({ title: 'Error', description: 'Could not load app data.', variant: 'destructive' });
+      if (!isPolling) {
+        toast({ title: 'Error', description: 'Could not load app data.', variant: 'destructive' });
+      }
       console.error(err);
     } finally {
-      setLoading(false);
+      if (!isPolling) {
+        setLoading(false);
+      }
     }
-  }, [toast]);
+  }, [toast, user, pathname]);
   
   const updateData = async (newData: JsonBlobData) => {
-    // Set loading to true only for the update operation, not for the whole app
-    // setLoading(true); 
     try {
         const response = await fetch(JSONBLOB_API_URL, {
             method: 'PUT',
@@ -60,14 +92,12 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         if (!response.ok) {
             throw new Error('Failed to update data in JSONBlob');
         }
-        setData(newData); // Optimistic update
+        setData(newData); 
     } catch (err: any) {
         setError(err);
         toast({ title: 'Error', description: 'Could not save changes.', variant: 'destructive' });
         console.error(err);
-        await fetchData(); // Re-fetch to revert optimistic update on failure
-    } finally {
-       // setLoading(false);
+        await fetchData();
     }
   };
 
@@ -78,10 +108,18 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       setUser(JSON.parse(storedUser));
     }
     fetchData();
-  }, [fetchData]);
+  }, []);
+
+  useEffect(() => {
+    if (user) {
+        const interval = setInterval(() => {
+            fetchData(true);
+        }, 10000); // Poll every 10 seconds
+        return () => clearInterval(interval);
+    }
+  }, [user, fetchData]);
 
   const login = async (username: string) => {
-    // Ensure data, data.users, and data.chats are initialized
     const currentData = data || { users: [], chats: [] };
     if (!currentData.users) {
         currentData.users = [];
@@ -94,7 +132,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         let userToLogin = currentData.users.find(u => u.displayName.toLowerCase() === username.toLowerCase());
 
         if (!userToLogin) {
-            // Create a new user
             userToLogin = {
                 uid: Date.now().toString(),
                 displayName: username,
