@@ -2,92 +2,76 @@
  * @fileoverview Firestore Security Rules for CloudTalk application.
  *
  * Core Philosophy:
- * This ruleset enforces a strict user-ownership model for user profiles and contacts.
- * Chat room access is granted to participants, ensuring only authorized users can read and write messages.
+ * This ruleset enforces a strict user-ownership model for all data. Each user can only access their own profile, contacts, and messages.
  *
  * Data Structure:
- * - /users/{userId}: Stores user profile information, accessible only by the user themselves.
- * - /users/{userId}/contacts/{contactId}: Stores contacts for each user, accessible only by the user.
- * - /chatRooms/{chatRoomId}: Stores chat room metadata, accessible to participants.
- * - /chatRooms/{chatRoomId}/messages/{messageId}: Stores chat messages within chat rooms, accessible to participants.
+ * - /users/{userId}: Stores user profile information.
+ * - /users/{userId}/contacts/{contactUserId}: Stores contact information for a specific user.
+ * - /users/{userId}/contacts/{contactUserId}/messages/{messageId}: Stores chat messages between two users.
  *
  * Key Security Decisions:
- * - Users can only access their own profile data and contacts.
- * - Chat room access is based on participation.
- * - Data validation is minimal in this prototype phase, focusing on authorization and relational integrity.
+ * - Users can only read and write their own user document.
+ * - Users can only read and write contact documents that belong to them.
+ * - Users can only read and write message documents within their own contact lists.
+ * - No listing of all users or all contacts is allowed to prevent information leakage.
  *
  * Denormalization for Authorization:
- * - Chat messages store `senderId` and `receiverId` to avoid needing to fetch user documents for authorization.
+ * The data structure uses path-based ownership to simplify authorization checks.
+ * The userId is embedded in the path of contacts and messages, allowing for easy validation of ownership.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Allows users to read and write their own user profile data.
+     * @description Controls access to user profile documents.
      * @path /users/{userId}
-     * @allow (create) - User with ID 'user123' can create their own profile.
-     *   - request.auth.uid: 'user123'
-     *   - request.resource.data.id: 'user123'
-     * @allow (get) - User with ID 'user123' can read their own profile.
-     *   - request.auth.uid: 'user123'
-     * @allow (update) - User with ID 'user123' can update their own profile.
-     *   - request.auth.uid: 'user123'
-     * @allow (delete) - User with ID 'user123' can delete their own profile.
-     *   - request.auth.uid: 'user123'
-     * @deny (create) - User with ID 'user456' cannot create a profile for 'user123'.
-     *   - request.auth.uid: 'user456'
-     *   - request.resource.data.id: 'user123'
-     * @principle Enforces document ownership for writes.
+     * @allow (create) User with ID 'user123' can create their profile.
+     *   Incoming data: { id: 'user123', ... }
+     * @allow (get) User with ID 'user123' can read their profile.
+     * @allow (update) User with ID 'user123' can update their profile.
+     * @allow (delete) User with ID 'user123' can delete their profile.
+     * @deny (create) User with ID 'user123' cannot create a profile with a different ID.
+     *   Incoming data: { id: 'user456', ... }
+     * @deny (get) User with ID 'user456' cannot read user 'user123's profile.
+     * @principle Enforces document ownership for all operations.
      */
     match /users/{userId} {
-      function isSignedIn() {
-        return request.auth != null;
+      function isOwner(userId) {
+        return request.auth != null && request.auth.uid == userId;
       }
 
-      function isOwner(userId) {
-        return isSignedIn() && request.auth.uid == userId;
+      function isNewOwner(userId) {
+        return request.resource.data.id == userId;
       }
 
       function isExistingOwner(userId) {
-        return isOwner(userId) && exists(resource);
+          return isOwner(userId) && resource != null;
       }
-
       allow get: if isOwner(userId);
-      allow list: if false;
-      allow create: if isOwner(userId) && request.resource.data.id == userId;
-      allow update: if isExistingOwner(userId);
+      allow list: if false; // Listing users is not allowed.
+      allow create: if isOwner(userId) && isNewOwner(userId);
+      allow update: if isExistingOwner(userId) && request.resource.data.id == resource.data.id;
       allow delete: if isExistingOwner(userId);
     }
 
     /**
-     * @description Allows users to manage their own contacts.
-     * @path /users/{userId}/contacts/{contactId}
-     * @allow (create) - User with ID 'user123' can create a contact.
-     *   - request.auth.uid: 'user123'
-     *   - request.resource.data.userId: 'user123'
-     * @allow (get) - User with ID 'user123' can read their own contact.
-     *   - request.auth.uid: 'user123'
-     * @allow (update) - User with ID 'user123' can update their own contact.
-     *   - request.auth.uid: 'user123'
-     * @allow (delete) - User with ID 'user123' can delete their own contact.
-     *   - request.auth.uid: 'user123'
-     * @deny (create) - User with ID 'user456' cannot create a contact for 'user123'.
-     *   - request.auth.uid: 'user456'
-     *   - request.resource.data.userId: 'user123'
-     * @principle Restricts access to a user's own data tree.
+     * @description Controls access to contact documents for a specific user.
+     * @path /users/{userId}/contacts/{contactUserId}
+     * @allow (create) User 'user123' can add contact 'contact456' to their list.
+     * @allow (get) User 'user123' can read contact 'contact456' from their list.
+     * @allow (update) User 'user123' can update contact 'contact456' in their list.
+     * @allow (delete) User 'user123' can delete contact 'contact456' from their list.
+     * @deny (create) User 'user456' cannot add a contact to user 'user123's list.
+     * @deny (get) User 'user456' cannot read contacts from user 'user123's list.
+     * @principle Enforces document ownership for contact management.
      */
-    match /users/{userId}/contacts/{contactId} {
-       function isSignedIn() {
-        return request.auth != null;
-      }
-
+    match /users/{userId}/contacts/{contactUserId} {
       function isOwner(userId) {
-        return isSignedIn() && request.auth.uid == userId;
+        return request.auth != null && request.auth.uid == userId;
       }
-
       function isExistingOwner(userId) {
-        return isOwner(userId) && exists(resource);
+          return isOwner(userId) && resource != null;
       }
 
       allow get: if isOwner(userId);
@@ -98,82 +82,28 @@ service cloud.firestore {
     }
 
     /**
-     * @description Allows participants of a chat room to access the chat room data.
-     * @path /chatRooms/{chatRoomId}
-     * @allow (create) - Anyone can create a chatroom
-     *   - request.auth.uid: 'user123'
-     * @allow (get) - User with ID 'user123' can read the chat room if they are a participant.
-     *   - request.auth.uid: 'user123'
-     *   - resource.data.participants: ['user123', 'user456']
-     * @allow (update) - User with ID 'user123' can update the chat room if they are a participant.
-     *   - request.auth.uid: 'user123'
-     *   - resource.data.participants: ['user123', 'user456']
-     * @allow (delete) - User with ID 'user123' can delete the chat room if they are a participant.
-     *   - request.auth.uid: 'user123'
-     *   - resource.data.participants: ['user123', 'user456']
-     * @deny (get) - User with ID 'user789' cannot read the chat room if they are not a participant.
-     *   - request.auth.uid: 'user789'
-     *   - resource.data.participants: ['user123', 'user456']
-     * @principle Enforces access control based on chat room participation.
+     * @description Controls access to chat messages between two users.
+     * @path /users/{userId}/contacts/{contactUserId}/messages/{messageId}
+     * @allow (create) User 'user123' can send a message to 'contact456'.
+     * @allow (get) User 'user123' can read a message they sent to 'contact456'.
+     * @allow (update) User 'user123' can update a message they sent to 'contact456'.
+     * @allow (delete) User 'user123' can delete a message they sent to 'contact456'.
+     * @deny (create) User 'user456' cannot send a message as if it were from user 'user123'.
+     * @deny (get) User 'user456' cannot read messages from user 'user123's conversations.
+     * @principle Enforces document ownership for chat messages.
      */
-    match /chatRooms/{chatRoomId} {
-      function isSignedIn() {
-        return request.auth != null;
+    match /users/{userId}/contacts/{contactUserId}/messages/{messageId} {
+      function isOwner(userId) {
+        return request.auth != null && request.auth.uid == userId;
       }
-
-      function isParticipant(chatRoomId) {
-        return isSignedIn() && request.auth.uid in resource.data.participants;
+      function isExistingOwner(userId) {
+          return isOwner(userId) && resource != null;
       }
-
-      function isExistingParticipant(chatRoomId) {
-          return isParticipant(chatRoomId) && exists(resource);
-      }
-
-      allow get: if isParticipant(chatRoomId);
-      allow list: if false;
-      allow create: if isSignedIn(); // Open for prototyping, restrict later.
-      allow update: if isExistingParticipant(chatRoomId);
-      allow delete: if isExistingParticipant(chatRoomId);
-    }
-
-    /**
-     * @description Allows participants of a chat room to read and write messages within that chat room.
-     * @path /chatRooms/{chatRoomId}/messages/{messageId}
-     * @allow (create) - User with ID 'user123' can create a message in the chat room if they are a participant.
-     *   - request.auth.uid: 'user123'
-     *   - get(/databases/$(database)/documents/chatRooms/$(chatRoomId)).data.participants: ['user123', 'user456']
-     * @allow (get) - User with ID 'user123' can read a message in the chat room if they are a participant.
-     *   - request.auth.uid: 'user123'
-     *   - get(/databases/$(database)/documents/chatRooms/$(chatRoomId)).data.participants: ['user123', 'user456']
-     * @allow (update) - User with ID 'user123' can update a message in the chat room if they are a participant.
-     *   - request.auth.uid: 'user123'
-     *   - get(/databases/$(database)/documents/chatRooms/$(chatRoomId)).data.participants: ['user123', 'user456']
-     * @allow (delete) - User with ID 'user123' can delete a message in the chat room if they are a participant.
-     *   - request.auth.uid: 'user123'
-     *   - get(/databases/$(database)/documents/chatRooms/$(chatRoomId)).data.participants: ['user123', 'user456']
-     * @deny (create) - User with ID 'user789' cannot create a message in the chat room if they are not a participant.
-     *   - request.auth.uid: 'user789'
-     *   - get(/databases/$(database)/documents/chatRooms/$(chatRoomId)).data.participants: ['user123', 'user456']
-     * @principle Enforces access control based on chat room participation, leveraging get() for subcollection access.
-     */
-    match /chatRooms/{chatRoomId}/messages/{messageId} {
-      function isSignedIn() {
-        return request.auth != null;
-      }
-
-      function isParticipant(chatRoomId) {
-        return isSignedIn() && request.auth.uid in get(/databases/$(database)/documents/chatRooms/$(chatRoomId)).data.participants;
-      }
-      
-      function isExistingParticipant(chatRoomId) {
-          return isParticipant(chatRoomId) && exists(resource);
-      }
-
-      allow get: if isParticipant(chatRoomId);
-      allow list: if isParticipant(chatRoomId);
-      allow create: if isParticipant(chatRoomId);
-      allow update: if isExistingParticipant(chatRoomId);
-      allow delete: if isExistingParticipant(chatRoomId);
+      allow get: if isOwner(userId);
+      allow list: if isOwner(userId);
+      allow create: if isOwner(userId);
+      allow update: if isExistingOwner(userId);
+      allow delete: if isExistingOwner(userId);
     }
   }
 }
