@@ -31,6 +31,7 @@ export function MessageList({ chatId }: { chatId: string }) {
   useEffect(() => {
     if (!loading && messages.length > 0 && listRef.current) {
         // A short timeout ensures the list has rendered before we scroll.
+        // This prevents race conditions with rendering.
         setTimeout(() => {
             listRef.current?.scrollToItem(messages.length - 1, 'end');
         }, 100);
