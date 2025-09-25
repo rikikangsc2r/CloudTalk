@@ -5,7 +5,7 @@ import type { UserProfile, JsonBlobData, Chat } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 import { usePathname } from 'next/navigation';
 
-const JSONBLOB_API_URL = process.env.NEXT_PUBLIC_JSONBLOB_API_URL || 'https://jsonblob.com/api/jsonBlob/1420617466761109504';
+const API_URL = '/api/data';
 
 interface AppContextType {
   user: UserProfile | null;
@@ -39,9 +39,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       setLoading(true);
     }
     try {
-      const response = await fetch(JSONBLOB_API_URL);
+      const response = await fetch(API_URL);
       if (!response.ok) {
-        throw new Error('Failed to fetch data from JSONBlob');
+        throw new Error('Failed to fetch data from API');
       }
       const blobData: JsonBlobData = await response.json();
       
@@ -91,7 +91,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   
   const updateData = async (newData: JsonBlobData) => {
     try {
-        const response = await fetch(JSONBLOB_API_URL, {
+        const response = await fetch(API_URL, {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json',
@@ -101,7 +101,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         });
 
         if (!response.ok) {
-            throw new Error('Failed to update data in JSONBlob');
+            throw new Error('Failed to update data via API');
         }
         setData(newData); 
     } catch (err: any) {

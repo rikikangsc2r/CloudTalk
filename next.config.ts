@@ -42,9 +42,6 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-  env: {
-    NEXT_PUBLIC_JSONBLOB_API_URL: process.env.JSONBLOB_API_URL,
-  }
 };
 
 export default nextConfig;
