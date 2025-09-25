@@ -2,10 +2,12 @@
 import { ChatView } from '@/components/chat/ChatView';
 import { useJsonBlob } from '@/hooks/useJsonBlob';
 import { useAuth } from '@/hooks/useAuth';
-import type { UserProfile, Chat } from '@/types';
-import { notFound } from 'next/navigation';
+import type { UserProfile } from '@/types';
+import { notFound, useParams } from 'next/navigation';
 
-export default function ChatPage({ params }: { params: { chatId: string } }) {
+export default function ChatPage() {
+  const params = useParams();
+  const chatId = params.chatId as string;
   const { user, loading: isUserLoading } = useAuth();
   const { data, loading: isChatLoading } = useJsonBlob();
 
@@ -14,7 +16,7 @@ export default function ChatPage({ params }: { params: { chatId: string } }) {
     return <div>Loading...</div>;
   }
   
-  const chat = data?.chats.find(c => c.id === params.chatId);
+  const chat = data?.chats.find(c => c.id === chatId);
   
   if (!chat || !user || !chat.users.includes(user.uid)) {
     return notFound();
@@ -27,5 +29,5 @@ export default function ChatPage({ params }: { params: { chatId: string } }) {
     return notFound();
   }
 
-  return <ChatView chatId={params.chatId} otherUser={otherUser} />;
+  return <ChatView chatId={chatId} otherUser={otherUser} />;
 }
