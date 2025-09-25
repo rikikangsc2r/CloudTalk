@@ -3,7 +3,7 @@ import { useEffect, useRef } from 'react';
 import { useJsonBlob } from '@/hooks/useJsonBlob';
 import { MessageBubble } from './MessageBubble';
 import { Skeleton } from '../ui/skeleton';
-import { FixedSizeList as List } from 'react-window';
+import { VariableSizeList as List } from 'react-window';
 import AutoSizer from 'react-virtualized-auto-sizer';
 import { useIsMobile } from '@/hooks/use-mobile';
 
