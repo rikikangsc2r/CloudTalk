@@ -31,7 +31,7 @@ export function MessageList({ chatId }: { chatId: string }) {
   }
 
   return (
-    <ScrollArea className="flex-1" viewportRef={viewportRef}>
+    <ScrollArea className="flex-1" ref={viewportRef}>
       <div className="p-4 space-y-4">
         {messages && messages.map(message => (
           <MessageBubble key={message.id} message={message} />
