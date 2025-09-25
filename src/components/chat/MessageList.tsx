@@ -33,7 +33,7 @@ export function MessageList({ chatId }: { chatId: string }) {
   const messages = chat?.messages?.sort((a,b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()) || [];
 
   useEffect(() => {
-    // Reset initial load flag when chat ID changes
+    // Reset initial load flag when chat ID changes, to trigger loading overlay again
     initialLoadRef.current = true;
   }, [chatId]);
 
@@ -44,23 +44,25 @@ export function MessageList({ chatId }: { chatId: string }) {
         };
 
         if (initialLoadRef.current) {
+            // This block now correctly handles the initial load for a chat
             setIsScrolling(true);
+            // Use timeout to ensure the list is rendered before we scroll
             setTimeout(() => {
                 scrollToBottom();
+                // A second timeout to remove the overlay after scrolling is complete
                 setTimeout(() => {
                     setIsScrolling(false);
                     initialLoadRef.current = false;
-                }, 300);
-            }, 50);
+                }, 300); // This delay allows the scroll to finish
+            }, 50); // This short delay allows react-window to calculate sizes
         } else {
-            // For new messages, scroll smoothly without the overlay
-            // A small timeout helps ensure the new item is rendered
+            // For new incoming messages, scroll smoothly without the overlay
             setTimeout(() => {
                 scrollToBottom('smooth');
             }, 50);
         }
     }
-  }, [messages, chatId]);
+  }, [messages]); // This effect now correctly depends only on messages array changes
 
   if (loading) {
     return (
