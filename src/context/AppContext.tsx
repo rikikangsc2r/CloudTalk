@@ -82,20 +82,30 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const login = async (userToLogin: UserProfile) => {
     // In a real app, you'd fetch the user from your backend/API
     // For this demo, we'll check if the user exists in our JSONBlob
-    if (data) {
-        let userExists = data.users.some(u => u.uid === userToLogin.uid);
+    
+    // Ensure data, data.users, and data.chats are initialized
+    const currentData = data || { users: [], chats: [] };
+    if (!currentData.users) {
+        currentData.users = [];
+    }
+    if (!currentData.chats) {
+        currentData.chats = [];
+    }
+
+    try {
+        let userExists = currentData.users.some(u => u.uid === userToLogin.uid);
 
         if (!userExists) {
             // Add new user to the blob
-            const updatedUsers = [...data.users, userToLogin];
-            await updateData({ ...data, users: updatedUsers });
+            const updatedUsers = [...currentData.users, userToLogin];
+            await updateData({ ...currentData, users: updatedUsers });
         }
         
         setUser(userToLogin);
         localStorage.setItem('chat-user', JSON.stringify(userToLogin));
-    } else {
-        // Handle case where data isn't loaded yet
-        toast({ title: 'Error', description: 'Data not loaded, please try again.' });
+    } catch (error) {
+        console.error("Error during login:", error);
+        toast({ title: 'Error', description: 'Could not log in. Please try again.' });
     }
   };
 
