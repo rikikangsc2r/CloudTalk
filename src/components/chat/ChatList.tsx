@@ -23,6 +23,8 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { useToast } from '@/hooks/use-toast'
+import { decryptMessage } from '@/lib/crypto'
+import { useMemo } from 'react'
 
 
 function ChatListItem({ chat, allUsers }: { chat: Chat, allUsers: UserProfile[] }) {
@@ -36,6 +38,16 @@ function ChatListItem({ chat, allUsers }: { chat: Chat, allUsers: UserProfile[] 
   const otherUser = allUsers.find(u => u.uid === otherUserId);
   const lastMessageTimestamp = chat.lastMessage?.timestamp ? new Date(chat.lastMessage.timestamp) : null;
   const unreadCount = user ? chat.unreadCounts?.[user.uid] ?? 0 : 0;
+  
+  const decryptedLastMessage = useMemo(() => {
+    if (!chat.lastMessage?.text) return chat.lastMessage?.imageUrl ? 'Image' : 'No messages yet';
+    if (chat.lastMessage.text === 'Image') return 'Image';
+    try {
+      return decryptMessage(chat.lastMessage.text);
+    } catch (e) {
+      return chat.lastMessage.text; // Show original if decryption fails
+    }
+  }, [chat.lastMessage]);
 
   const handleDeleteChat = async () => {
     if (!data) return;
@@ -86,7 +98,7 @@ function ChatListItem({ chat, allUsers }: { chat: Chat, allUsers: UserProfile[] 
             )}
           </div>
           <p className={cn("text-sm truncate", unreadCount > 0 ? "text-foreground font-medium" : "text-muted-foreground")}>
-            {chat.lastMessage?.text ?? (chat.lastMessage?.imageUrl ? 'Image' : 'No messages yet')}
+            {decryptedLastMessage}
           </p>
         </div>
       </Link>

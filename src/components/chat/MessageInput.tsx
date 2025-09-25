@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Paperclip, Send, Loader2 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import type { Message } from '@/types'
+import { encryptMessage } from '@/lib/crypto'
 
 export function MessageInput({ chatId }: { chatId: string }) {
   const [text, setText] = useState('')
@@ -21,9 +22,11 @@ export function MessageInput({ chatId }: { chatId: string }) {
     setIsSending(true)
 
     try {
+        const encryptedText = text.trim() ? encryptMessage(text.trim()) : '';
+
         const newMessage: Message = {
             id: Date.now().toString(),
-            text: text.trim(),
+            text: encryptedText,
             senderId: user.uid,
             timestamp: new Date().toISOString(),
             ...(imageUrl && { imageUrl }),

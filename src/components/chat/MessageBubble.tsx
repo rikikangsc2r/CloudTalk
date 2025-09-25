@@ -3,10 +3,17 @@ import { cn } from '@/lib/utils'
 import type { Message } from '@/types'
 import { useAuth } from '@/hooks/useAuth'
 import Image from 'next/image'
+import { decryptMessage } from '@/lib/crypto'
+import { useMemo } from 'react'
 
 export function MessageBubble({ message }: { message: Message }) {
   const { user } = useAuth()
   const isCurrentUser = user?.uid === message.senderId
+
+  const decryptedText = useMemo(() => {
+    if (!message.text) return '';
+    return decryptMessage(message.text);
+  }, [message.text]);
 
   return (
     <div className={cn('flex items-end gap-2', isCurrentUser ? 'justify-end' : 'justify-start')}>
@@ -28,10 +35,10 @@ export function MessageBubble({ message }: { message: Message }) {
                     className="rounded-md object-cover cursor-pointer"
                     onClick={() => window.open(message.imageUrl, '_blank')}
                 />
-                {message.text && <p className='pt-2'>{message.text}</p>}
+                {decryptedText && <p className='pt-2'>{decryptedText}</p>}
             </div>
         ) : (
-          <p>{message.text}</p>
+          <p>{decryptedText}</p>
         )}
       </div>
     </div>
