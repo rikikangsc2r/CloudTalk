@@ -1,14 +1,10 @@
 'use client';
-
-import { useRouter } from 'next/navigation';
-import { GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
-import { useAuth, useFirestore, setDocumentNonBlocking } from '@/firebase';
-import { doc } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { MessageSquareText } from 'lucide-react';
 import { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/hooks/useAuth';
 
 const GoogleIcon = () => (
   <svg className="mr-2 h-4 w-4" aria-hidden="true" focusable="false" viewBox="0 0 488 512">
@@ -18,33 +14,26 @@ const GoogleIcon = () => (
 
 
 export function LoginCard() {
-  const auth = useAuth();
-  const firestore = useFirestore();
+  const { login } = useAuth();
   const { toast } = useToast();
   const [isSigningIn, setIsSigningIn] = useState(false);
 
   const handleSignIn = async () => {
     setIsSigningIn(true);
-    const provider = new GoogleAuthProvider();
     try {
-      const result = await signInWithPopup(auth, provider);
-      const user = result.user;
-
-      if (user && firestore) {
-        const userRef = doc(firestore, 'users', user.uid);
-        setDocumentNonBlocking(userRef, {
-          uid: user.uid,
-          displayName: user.displayName,
-          email: user.email,
-          photoURL: user.photoURL,
-        }, { merge: true });
-      }
+      // Mock user data, in a real app this would come from an OAuth provider
+      await login({
+        uid: '1',
+        displayName: 'Demo User',
+        email: 'demo@example.com',
+        photoURL: 'https://picsum.photos/seed/1/100/100',
+      });
     } catch (error) {
       console.error("Error during sign-in:", error);
       toast({
         variant: "destructive",
         title: "Sign-in Failed",
-        description: "Could not sign in with Google. Please try again.",
+        description: "Could not sign in. Please try again.",
       });
     } finally {
         setIsSigningIn(false);
@@ -67,7 +56,7 @@ export function LoginCard() {
           ) : (
             <>
               <GoogleIcon />
-              Sign in with Google
+              Sign in with Demo Account
             </>
           )}
         </Button>

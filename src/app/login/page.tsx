@@ -1,7 +1,7 @@
 'use client';
 import { LoginCard } from '@/components/auth/LoginCard';
 import { Suspense, useEffect } from 'react';
-import { useUser } from '@/firebase';
+import { useAuth } from '@/hooks/useAuth';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Skeleton } from '@/components/ui/skeleton';
 import { MessageSquareText } from 'lucide-react';
@@ -9,18 +9,18 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 
 
 export default function LoginPage() {
-  const { user, isUserLoading } = useUser();
+  const { user, loading } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
 
   useEffect(() => {
-    if (!isUserLoading && user) {
+    if (!loading && user) {
       const from = searchParams.get('from') || '/chat';
       router.replace(from);
     }
-  }, [user, isUserLoading, router, searchParams]);
+  }, [user, loading, router, searchParams]);
 
-  if (isUserLoading || user) {
+  if (loading || user) {
     return (
        <main className="flex min-h-screen w-full items-center justify-center bg-background p-4">
          <Card className="w-full max-w-sm animate-pulse">

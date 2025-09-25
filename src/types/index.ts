@@ -1,5 +1,3 @@
-import type { Timestamp } from 'firebase/firestore';
-
 export interface UserProfile {
   uid: string;
   displayName: string;
@@ -10,8 +8,12 @@ export interface UserProfile {
 export interface Chat {
   id: string;
   users: string[];
-  lastMessage?: Message;
-  // For client-side display, we'll merge user profile data
+  messages: Message[];
+  lastMessage?: {
+    text: string;
+    timestamp: string;
+  };
+  createdAt: string;
   otherUser?: UserProfile;
 }
 
@@ -19,6 +21,11 @@ export interface Message {
   id: string;
   text: string;
   senderId: string;
-  timestamp: Timestamp;
+  timestamp: string;
   imageUrl?: string;
+}
+
+export interface JsonBlobData {
+    users: UserProfile[];
+    chats: Chat[];
 }

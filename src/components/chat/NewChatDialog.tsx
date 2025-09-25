@@ -1,8 +1,8 @@
 'use client'
 import { useState, useEffect } from 'react'
-import { collection, getDocs, query, where, addDoc, serverTimestamp, getDocs as getChatDocs } from 'firebase/firestore'
-import { useFirestore, useUser, addDocumentNonBlocking } from '@/firebase'
-import type { UserProfile } from '@/types'
+import { useAuth } from '@/hooks/useAuth'
+import { useJsonBlob } from '@/hooks/useJsonBlob'
+import type { UserProfile, Chat } from '@/types'
 import {
   Dialog,
   DialogContent,
@@ -21,56 +21,42 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/
 
 
 export function NewChatDialog() {
-  const { user } = useUser()
-  const firestore = useFirestore();
+  const { user } = useAuth()
+  const { data, loading, updateData } = useJsonBlob();
   const [users, setUsers] = useState<UserProfile[]>([])
-  const [loading, setLoading] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   const [open, setOpen] = useState(false)
   const router = useRouter()
   const { toast } = useToast()
 
   useEffect(() => {
-    if (!open || !user || !firestore) return
-
-    const fetchUsers = async () => {
-      setLoading(true)
-      try {
-        const usersRef = collection(firestore, 'users')
-        const q = query(usersRef, where('uid', '!=', user.uid))
-        const querySnapshot = await getDocs(q)
-        const usersData = querySnapshot.docs.map(doc => doc.data() as UserProfile)
-        setUsers(usersData)
-      } catch (error) {
-        console.error("Error fetching users:", error)
-        toast({ title: 'Error', description: 'Could not fetch users.' })
-      }
-      setLoading(false)
+    if (data?.users && user) {
+        setUsers(data.users.filter(u => u.uid !== user.uid));
     }
-
-    fetchUsers()
-  }, [open, user, firestore, toast])
+  }, [data, user])
 
   const handleCreateChat = async (otherUser: UserProfile) => {
-    if (!user || !firestore) return
+    if (!user || !data) return
     
     // Check if a chat already exists
-    const chatsRef = collection(firestore, 'chats');
-    const q = query(chatsRef, where('users', 'in', [[user.uid, otherUser.uid], [otherUser.uid, user.uid]]));
+    const existingChat = data.chats.find(chat => 
+      chat.users.includes(user.uid) && chat.users.includes(otherUser.uid)
+    );
     
     try {
-        const chatSnapshot = await getChatDocs(q);
-        if (!chatSnapshot.empty) {
-            // Chat already exists, navigate to it
-            const chatId = chatSnapshot.docs[0].id;
-            router.push(`/chat/${chatId}`);
+        if (existingChat) {
+            router.push(`/chat/${existingChat.id}`);
         } else {
             // Create a new chat
-            const newChatRef = await addDoc(collection(firestore, 'chats'), {
+            const newChat: Chat = {
+                id: Date.now().toString(),
                 users: [user.uid, otherUser.uid],
-                createdAt: serverTimestamp(),
-            });
-            router.push(`/chat/${newChatRef.id}`);
+                messages: [],
+                createdAt: new Date().toISOString(),
+            };
+            const updatedData = { ...data, chats: [...data.chats, newChat] };
+            await updateData(updatedData);
+            router.push(`/chat/${newChat.id}`);
         }
         setOpen(false)
     } catch (error) {

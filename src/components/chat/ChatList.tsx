@@ -1,33 +1,22 @@
 'use client'
-
-import { collection, query, where, orderBy, doc } from 'firebase/firestore'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { formatDistanceToNowStrict } from 'date-fns'
-import { useFirestore, useUser, useCollection, useMemoFirebase, useDoc } from '@/firebase'
+import { useAuth } from '@/hooks/useAuth'
+import { useJsonBlob } from '@/hooks/useJsonBlob'
 import type { Chat, UserProfile } from '@/types'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { cn } from '@/lib/utils'
-import { useEffect, useMemo } from 'react'
 
-
-function ChatListItem({ chat }: { chat: Chat }) {
-  const { user } = useUser();
-  const firestore = useFirestore();
+function ChatListItem({ chat, allUsers }: { chat: Chat, allUsers: UserProfile[] }) {
+  const { user } = useAuth();
   const pathname = usePathname();
 
-  const otherUserId = useMemo(() => {
-    return chat.users.find(uid => uid !== user?.uid)
-  }, [chat.users, user]);
-
-  const otherUserRef = useMemoFirebase(() => {
-    if (!firestore || !otherUserId) return null;
-    return doc(firestore, 'users', otherUserId)
-  }, [firestore, otherUserId]);
-
-  const { data: otherUser } = useDoc<UserProfile>(otherUserRef);
+  const otherUserId = chat.users.find(uid => uid !== user?.uid);
+  const otherUser = allUsers.find(u => u.uid === otherUserId);
+  const lastMessageTimestamp = chat.lastMessage?.timestamp ? new Date(chat.lastMessage.timestamp) : null;
 
   return (
       <Link
@@ -44,9 +33,9 @@ function ChatListItem({ chat }: { chat: Chat }) {
         <div className="flex-1 overflow-hidden">
           <div className="flex justify-between items-center">
             <h3 className="font-semibold truncate">{otherUser?.displayName ?? 'Unknown User'}</h3>
-            {chat.lastMessage?.timestamp && (
+            {lastMessageTimestamp && (
               <p className="text-xs text-muted-foreground whitespace-nowrap">
-                {formatDistanceToNowStrict(chat.lastMessage.timestamp.toDate())}
+                {formatDistanceToNowStrict(lastMessageTimestamp)}
               </p>
             )}
           </div>
@@ -58,23 +47,11 @@ function ChatListItem({ chat }: { chat: Chat }) {
   )
 }
 
-
 export function ChatList() {
-  const { user } = useUser()
-  const firestore = useFirestore()
+  const { user } = useAuth()
+  const { data, loading } = useJsonBlob()
 
-  const chatsQuery = useMemoFirebase(() => {
-    if (!user || !firestore) return null;
-    return query(
-        collection(firestore, 'chats'), 
-        where('users', 'array-contains', user.uid),
-        orderBy('lastMessage.timestamp', 'desc')
-    );
-  }, [user, firestore]);
-
-  const { data: chats, isLoading } = useCollection<Chat>(chatsQuery);
-
-  if (isLoading) {
+  if (loading) {
     return (
       <div className="p-4 space-y-3">
         {[...Array(5)].map((_, i) => (
@@ -89,8 +66,17 @@ export function ChatList() {
       </div>
     )
   }
+  
+  const userChats = data?.chats
+    .filter(chat => chat.users.includes(user?.uid ?? ''))
+    .sort((a,b) => {
+        const dateA = a.lastMessage?.timestamp ? new Date(a.lastMessage.timestamp).getTime() : 0;
+        const dateB = b.lastMessage?.timestamp ? new Date(b.lastMessage.timestamp).getTime() : 0;
+        return dateB - dateA;
+    });
 
-  if (chats && chats.length === 0) {
+
+  if (!userChats || userChats.length === 0) {
     return (
       <div className="flex-1 flex items-center justify-center p-4 text-center">
         <p className="text-muted-foreground">No chats yet. Start a new conversation!</p>
@@ -101,8 +87,8 @@ export function ChatList() {
   return (
     <ScrollArea className="flex-1">
       <nav className="p-2 space-y-1">
-        {chats?.map((chat) => (
-          <ChatListItem key={chat.id} chat={chat} />
+        {userChats.map((chat) => (
+          <ChatListItem key={chat.id} chat={chat} allUsers={data?.users ?? []} />
         ))}
       </nav>
     </ScrollArea>

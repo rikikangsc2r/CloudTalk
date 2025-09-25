@@ -4,21 +4,21 @@ import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Skeleton } from '@/components/ui/skeleton';
 import { MessageSquareText } from 'lucide-react';
-import { useUser } from '@/firebase';
+import { useAuth } from '@/hooks/useAuth';
 
 export default function HomePage() {
-  const { user, isUserLoading } = useUser();
+  const { user, loading } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
-    if (!isUserLoading) {
+    if (!loading) {
       if (user) {
         router.replace('/chat');
       } else {
         router.replace('/login');
       }
     }
-  }, [user, isUserLoading, router]);
+  }, [user, loading, router]);
 
   return (
     <div className="flex h-screen w-full items-center justify-center bg-background">

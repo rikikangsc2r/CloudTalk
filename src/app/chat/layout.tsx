@@ -4,21 +4,15 @@ import { useParams, useRouter } from 'next/navigation';
 import { ChatSidebar } from '@/components/chat/ChatSidebar';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useUser } from '@/firebase';
-import { doc, getDoc } from 'firebase/firestore';
-import { useFirestore } from '@/firebase';
-import { useState } from 'react';
+import { useAuth } from '@/hooks/useAuth';
 import type { UserProfile } from '@/types';
-
 
 export default function ChatLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const { user, isUserLoading } = useUser();
-  const firestore = useFirestore();
-  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const { user, loading: isUserLoading } = useAuth();
   const router = useRouter();
   const isMobile = useIsMobile();
   const params = useParams();
@@ -28,17 +22,9 @@ export default function ChatLayout({
     if (!isUserLoading && !user) {
       router.replace('/login');
     }
-    if(user && firestore) {
-        const userRef = doc(firestore, 'users', user.uid);
-        getDoc(userRef).then(snap => {
-            if(snap.exists()) {
-                setUserProfile(snap.data() as UserProfile)
-            }
-        })
-    }
-  }, [user, isUserLoading, router, firestore]);
+  }, [user, isUserLoading, router]);
 
-  if (isUserLoading || !user || !userProfile) {
+  if (isUserLoading || !user) {
     return (
       <div className="flex h-screen w-full bg-background">
         <div className="hidden md:flex flex-col gap-4 p-4 border-r w-80 lg:w-96 bg-card/50">
@@ -65,14 +51,14 @@ export default function ChatLayout({
   if (isMobile) {
     return (
       <div className="h-dvh w-full bg-background">
-        {hasActiveChat ? <main className="flex-1 flex flex-col h-full">{children}</main> : <ChatSidebar userProfile={userProfile} />}
+        {hasActiveChat ? <main className="flex-1 flex flex-col h-full">{children}</main> : <ChatSidebar userProfile={user} />}
       </div>
     );
   }
 
   return (
     <div className="flex h-dvh w-full bg-background overflow-hidden">
-      <ChatSidebar userProfile={userProfile} />
+      <ChatSidebar userProfile={user} />
       <main className="flex-1 flex flex-col">{children}</main>
     </div>
   );

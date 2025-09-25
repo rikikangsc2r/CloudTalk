@@ -1,46 +1,55 @@
 'use client'
 import { useState, useRef } from 'react'
-import { collection, serverTimestamp, doc } from 'firebase/firestore'
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
-import { useFirestore, useUser, addDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase'
-import { getStorage } from 'firebase/storage';
+import { useAuth } from '@/hooks/useAuth'
+import { useJsonBlob } from '@/hooks/useJsonBlob'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Paperclip, Send, Loader2 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
+import type { Message } from '@/types'
 
 export function MessageInput({ chatId }: { chatId: string }) {
   const [text, setText] = useState('')
   const [isSending, setIsSending] = useState(false)
-  const { user } = useUser()
-  const firestore = useFirestore()
+  const { user } = useAuth()
+  const { data, updateData } = useJsonBlob();
   const { toast } = useToast()
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const handleSendMessage = async (imageUrl?: string) => {
-    if (!user || !firestore || (!text.trim() && !imageUrl)) return
+    if (!user || !data || (!text.trim() && !imageUrl)) return
     setIsSending(true)
 
     try {
-      const messageData = {
-        text: text.trim(),
-        senderId: user.uid,
-        timestamp: serverTimestamp(),
-        ...(imageUrl && { imageUrl }),
-      };
+        const newMessage: Message = {
+            id: Date.now().toString(),
+            text: text.trim(),
+            senderId: user.uid,
+            timestamp: new Date().toISOString(),
+            ...(imageUrl && { imageUrl }),
+        };
 
-      const messagesCol = collection(firestore, 'chats', chatId, 'messages');
-      addDocumentNonBlocking(messagesCol, messageData);
-      
-      const chatRef = doc(firestore, 'chats', chatId);
-      updateDocumentNonBlocking(chatRef, {
-        lastMessage: {
-          text: text.trim() || 'Image',
-          timestamp: serverTimestamp(),
-        }
-      });
+        const updatedChats = data.chats.map(chat => {
+            if (chat.id === chatId) {
+                const updatedMessages = [...(chat.messages || []), newMessage];
+                return { 
+                    ...chat, 
+                    messages: updatedMessages,
+                    lastMessage: {
+                        text: newMessage.text || 'Image',
+                        timestamp: newMessage.timestamp,
+                    }
+                };
+            }
+            return chat;
+        });
+
+        await updateData({ ...data, chats: updatedChats });
 
       setText('')
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
     } catch (error) {
       console.error("Error sending message:", error)
       toast({ title: 'Error', description: 'Could not send message.', variant: 'destructive'})
@@ -51,20 +60,23 @@ export function MessageInput({ chatId }: { chatId: string }) {
   
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
-    if (!file || !user || !firestore) return
+    if (!file) return;
 
     setIsSending(true)
     try {
-        const storage = getStorage(firestore.app);
-        const storageRef = ref(storage, `chat_images/${chatId}/${user.uid}_${Date.now()}_${file.name}`)
-        const snapshot = await uploadBytes(storageRef, file)
-        const downloadURL = await getDownloadURL(snapshot.ref)
-        await handleSendMessage(downloadURL)
+        // In a real app, you'd upload this to a service and get a URL.
+        // For this demo, we'll use a data URL as a placeholder.
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            handleSendMessage(reader.result as string);
+        }
+        reader.readAsDataURL(file);
+
     } catch (error) {
-        console.error("Error uploading file:", error)
-        toast({ title: 'Error', description: 'Could not upload image.', variant: 'destructive' })
+        console.error("Error handling file:", error)
+        toast({ title: 'Error', description: 'Could not process image.', variant: 'destructive' })
     } finally {
-        setIsSending(false)
+        // setIsSending is handled in handleSendMessage
     }
   }
 
