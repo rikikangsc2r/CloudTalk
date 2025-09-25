@@ -2,8 +2,7 @@
 import { LogOut, User } from 'lucide-react'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
-import { useAuth } from '@/hooks/useAuth'
-import { auth } from '@/lib/firebase'
+import { useAuth } from '@/firebase'
 import { ChatList } from './ChatList'
 import { NewChatDialog } from './NewChatDialog'
 import {
@@ -14,10 +13,10 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { Separator } from '../ui/separator'
+import type { UserProfile } from '@/types'
 
-export function ChatSidebar() {
-  const { userProfile } = useAuth()
+export function ChatSidebar({ userProfile }: { userProfile: UserProfile }) {
+  const auth = useAuth()
 
   const handleSignOut = () => {
     auth.signOut()

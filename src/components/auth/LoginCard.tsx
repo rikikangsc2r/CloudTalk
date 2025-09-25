@@ -1,14 +1,13 @@
 'use client';
 
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
-import { doc, setDoc } from 'firebase/firestore';
-import { useAuth } from '@/hooks/useAuth';
-import { auth, firestore } from '@/lib/firebase';
+import { useAuth, useFirestore, setDocumentNonBlocking } from '@/firebase';
+import { doc } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { MessageSquareText } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
 
 const GoogleIcon = () => (
@@ -19,18 +18,10 @@ const GoogleIcon = () => (
 
 
 export function LoginCard() {
-  const { user, loading } = useAuth();
-  const router = useRouter();
-  const searchParams = useSearchParams();
+  const auth = useAuth();
+  const firestore = useFirestore();
   const { toast } = useToast();
   const [isSigningIn, setIsSigningIn] = useState(false);
-
-  useEffect(() => {
-    if (!loading && user) {
-      const from = searchParams.get('from') || '/chat';
-      router.replace(from);
-    }
-  }, [user, loading, router, searchParams]);
 
   const handleSignIn = async () => {
     setIsSigningIn(true);
@@ -39,9 +30,9 @@ export function LoginCard() {
       const result = await signInWithPopup(auth, provider);
       const user = result.user;
 
-      if (user) {
+      if (user && firestore) {
         const userRef = doc(firestore, 'users', user.uid);
-        await setDoc(userRef, {
+        setDocumentNonBlocking(userRef, {
           uid: user.uid,
           displayName: user.displayName,
           email: user.email,
@@ -59,23 +50,6 @@ export function LoginCard() {
         setIsSigningIn(false);
     }
   };
-
-  if (loading || user) {
-    return (
-        <Card className="w-full max-w-sm animate-pulse">
-        <CardHeader className="text-center">
-            <div className="mx-auto bg-muted text-muted-foreground p-3 rounded-full w-fit mb-4">
-                <MessageSquareText size={32} />
-            </div>
-          <CardTitle className="text-2xl font-headline">CloudTalk</CardTitle>
-          <CardDescription>Connecting you to the cloud...</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="h-10 w-full rounded-md bg-muted" />
-        </CardContent>
-      </Card>
-    );
-  }
 
   return (
     <Card className="w-full max-w-sm shadow-xl border-primary/20">

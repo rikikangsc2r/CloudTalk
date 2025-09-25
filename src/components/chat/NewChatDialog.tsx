@@ -1,8 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
-import { collection, getDocs, query, where, addDoc, getDocs as getChatDocs, serverTimestamp, doc, updateDoc } from 'firebase/firestore'
-import { firestore } from '@/lib/firebase'
-import { useAuth } from '@/hooks/useAuth'
+import { collection, getDocs, query, where, addDoc, serverTimestamp, getDocs as getChatDocs } from 'firebase/firestore'
+import { useFirestore, useUser, addDocumentNonBlocking } from '@/firebase'
 import type { UserProfile } from '@/types'
 import {
   Dialog,
@@ -22,7 +21,8 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/
 
 
 export function NewChatDialog() {
-  const { user } = useAuth()
+  const { user } = useUser()
+  const firestore = useFirestore();
   const [users, setUsers] = useState<UserProfile[]>([])
   const [loading, setLoading] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
@@ -31,7 +31,7 @@ export function NewChatDialog() {
   const { toast } = useToast()
 
   useEffect(() => {
-    if (!open || !user) return
+    if (!open || !user || !firestore) return
 
     const fetchUsers = async () => {
       setLoading(true)
@@ -49,10 +49,10 @@ export function NewChatDialog() {
     }
 
     fetchUsers()
-  }, [open, user, toast])
+  }, [open, user, firestore, toast])
 
   const handleCreateChat = async (otherUser: UserProfile) => {
-    if (!user) return
+    if (!user || !firestore) return
     
     // Check if a chat already exists
     const chatsRef = collection(firestore, 'chats');

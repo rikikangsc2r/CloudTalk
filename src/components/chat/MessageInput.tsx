@@ -1,9 +1,9 @@
 'use client'
 import { useState, useRef } from 'react'
-import { collection, addDoc, serverTimestamp, doc, updateDoc } from 'firebase/firestore'
+import { collection, serverTimestamp, doc } from 'firebase/firestore'
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
-import { firestore, storage } from '@/lib/firebase'
-import { useAuth } from '@/hooks/useAuth'
+import { useFirestore, useUser, addDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase'
+import { getStorage } from 'firebase/storage';
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Paperclip, Send, Loader2 } from 'lucide-react'
@@ -12,12 +12,13 @@ import { useToast } from '@/hooks/use-toast'
 export function MessageInput({ chatId }: { chatId: string }) {
   const [text, setText] = useState('')
   const [isSending, setIsSending] = useState(false)
-  const { user } = useAuth()
+  const { user } = useUser()
+  const firestore = useFirestore()
   const { toast } = useToast()
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const handleSendMessage = async (imageUrl?: string) => {
-    if (!user || (!text.trim() && !imageUrl)) return
+    if (!user || !firestore || (!text.trim() && !imageUrl)) return
     setIsSending(true)
 
     try {
@@ -29,10 +30,10 @@ export function MessageInput({ chatId }: { chatId: string }) {
       };
 
       const messagesCol = collection(firestore, 'chats', chatId, 'messages');
-      await addDoc(messagesCol, messageData);
+      addDocumentNonBlocking(messagesCol, messageData);
       
       const chatRef = doc(firestore, 'chats', chatId);
-      await updateDoc(chatRef, {
+      updateDocumentNonBlocking(chatRef, {
         lastMessage: {
           text: text.trim() || 'Image',
           timestamp: serverTimestamp(),
@@ -50,10 +51,11 @@ export function MessageInput({ chatId }: { chatId: string }) {
   
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
-    if (!file || !user) return
+    if (!file || !user || !firestore) return
 
     setIsSending(true)
     try {
+        const storage = getStorage(firestore.app);
         const storageRef = ref(storage, `chat_images/${chatId}/${user.uid}_${Date.now()}_${file.name}`)
         const snapshot = await uploadBytes(storageRef, file)
         const downloadURL = await getDownloadURL(snapshot.ref)
@@ -61,6 +63,7 @@ export function MessageInput({ chatId }: { chatId: string }) {
     } catch (error) {
         console.error("Error uploading file:", error)
         toast({ title: 'Error', description: 'Could not upload image.', variant: 'destructive' })
+    } finally {
         setIsSending(false)
     }
   }
@@ -74,10 +77,10 @@ export function MessageInput({ chatId }: { chatId: string }) {
         }}
         className="flex items-center gap-2"
       >
-        <Button type="button" variant="ghost" size="icon" onClick={() => fileInputRef.current?.click()}>
+        <Button type="button" variant="ghost" size="icon" onClick={() => fileInputRef.current?.click()} disabled={isSending}>
           <Paperclip />
         </Button>
-        <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/*" className='hidden' />
+        <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/*" className='hidden' disabled={isSending} />
 
         <Input
           value={text}
@@ -86,7 +89,7 @@ export function MessageInput({ chatId }: { chatId: string }) {
           autoComplete="off"
           disabled={isSending}
         />
-        <Button type="submit" size="icon" disabled={isSending || !text.trim()}>
+        <Button type="submit" size="icon" disabled={isSending || (!text.trim() && !fileInputRef.current?.files?.length)}>
           {isSending ? <Loader2 className="animate-spin" /> : <Send />}
         </Button>
       </form>

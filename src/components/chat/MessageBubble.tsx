@@ -1,12 +1,11 @@
 'use client'
 import { cn } from '@/lib/utils'
 import type { Message } from '@/types'
-import { useAuth } from '@/hooks/useAuth'
+import { useUser } from '@/firebase'
 import Image from 'next/image'
-import { Card, CardContent } from '../ui/card'
 
 export function MessageBubble({ message }: { message: Message }) {
-  const { user } = useAuth()
+  const { user } = useUser()
   const isCurrentUser = user?.uid === message.senderId
 
   return (

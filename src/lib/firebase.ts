@@ -2,15 +2,8 @@ import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
+import { firebaseConfig } from '@/firebase/config';
 
-const firebaseConfig = {
-  apiKey: "AIzaSyCRRbWp50w9YKe-jXKEs9SJ4qkVcV0UhlI",
-  authDomain: "studio-7969231078-4753a.firebaseapp.com",
-  projectId: "studio-7969231078-4753a",
-  storageBucket: "studio-7969231078-4753a.appspot.com",
-  messagingSenderId: "193649213751",
-  appId: "1:193649213751:web:ac0c613424a1b9c34bdab2",
-};
 
 // Initialize Firebase
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();

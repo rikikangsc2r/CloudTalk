@@ -1,39 +1,30 @@
 'use client'
-import { useEffect, useRef, useState } from 'react'
-import { collection, query, orderBy, onSnapshot } from 'firebase/firestore'
-import { firestore } from '@/lib/firebase'
+import { useEffect, useRef } from 'react'
+import { collection, query, orderBy } from 'firebase/firestore'
+import { useFirestore, useCollection, useMemoFirebase } from '@/firebase'
 import type { Message } from '@/types'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { MessageBubble } from './MessageBubble'
 import { Skeleton } from '../ui/skeleton'
 
 export function MessageList({ chatId }: { chatId: string }) {
-  const [messages, setMessages] = useState<Message[]>([])
-  const [loading, setLoading] = useState(true)
-  const scrollAreaRef = useRef<HTMLDivElement>(null)
+  const firestore = useFirestore();
   const viewportRef = useRef<HTMLDivElement>(null);
 
+  const messagesQuery = useMemoFirebase(() => {
+    if (!firestore || !chatId) return null;
+    return query(collection(firestore, 'chats', chatId, 'messages'), orderBy('timestamp', 'asc'))
+  }, [firestore, chatId]);
 
-  useEffect(() => {
-    setLoading(true)
-    const q = query(collection(firestore, 'chats', chatId, 'messages'), orderBy('timestamp'))
-    
-    const unsubscribe = onSnapshot(q, (querySnapshot) => {
-      const messagesData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Message))
-      setMessages(messagesData)
-      setLoading(false)
-    })
-
-    return () => unsubscribe()
-  }, [chatId])
+  const { data: messages, isLoading } = useCollection<Message>(messagesQuery);
 
   useEffect(() => {
     if (viewportRef.current) {
       viewportRef.current.scrollTop = viewportRef.current.scrollHeight;
     }
-  }, [messages, loading]);
+  }, [messages, isLoading]);
 
-  if (loading) {
+  if (isLoading) {
     return (
         <div className="flex-1 p-4 space-y-4">
              <Skeleton className="h-10 w-3/4 rounded-lg" />
@@ -46,11 +37,11 @@ export function MessageList({ chatId }: { chatId: string }) {
 
   return (
     <ScrollArea className="flex-1" viewportRef={viewportRef}>
-      <div ref={scrollAreaRef} className="p-4 space-y-4">
-        {messages.map(message => (
+      <div className="p-4 space-y-4">
+        {messages && messages.map(message => (
           <MessageBubble key={message.id} message={message} />
         ))}
-        {messages.length === 0 && !loading && (
+        {(!messages || messages.length === 0) && !isLoading && (
           <div className='flex items-center justify-center h-full'>
             <p className='text-muted-foreground'>Send a message to start the conversation.</p>
           </div>
