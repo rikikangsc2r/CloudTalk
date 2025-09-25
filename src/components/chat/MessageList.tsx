@@ -11,8 +11,10 @@ import { useIsMobile } from '@/hooks/use-mobile';
 const Row = ({ index, style, data }: { index: number, style: React.CSSProperties, data: any[] }) => {
     const message = data[index];
     return (
-        <div style={style} className='px-4 py-1'>
-            <MessageBubble message={message} />
+        <div style={style} className='px-4 flex flex-col justify-end'>
+            <div className='pb-1'>
+              <MessageBubble message={message} />
+            </div>
         </div>
     );
 };
@@ -28,7 +30,7 @@ export function MessageList({ chatId }: { chatId: string }) {
 
   useEffect(() => {
     if (messages.length > 0 && listRef.current) {
-        // We use a timeout to ensure the list has had time to render before we scroll.
+        // A short timeout ensures the list has rendered before we scroll.
         setTimeout(() => {
             listRef.current?.scrollToItem(messages.length - 1, 'end');
         }, 50);
@@ -47,7 +49,7 @@ export function MessageList({ chatId }: { chatId: string }) {
   }
   
   const estimateSize = (message: any) => {
-    const baseHeight = 50; // base height for a simple text message
+    const baseHeight = 40; // base height for a simple text message
     const textHeight = message.text ? Math.ceil(message.text.length / (isMobile ? 30 : 50)) * 20 : 0;
     const imageHeight = message.imageUrl ? 220 : 0;
     return baseHeight + textHeight + imageHeight;
@@ -69,7 +71,7 @@ export function MessageList({ chatId }: { chatId: string }) {
                 ref={listRef}
                 height={height}
                 itemCount={messages.length}
-                itemSize={100} // This is an average, we could use a library to measure dynamically
+                itemSize={index => estimateSize(messages[index])} // Dynamic item size
                 width={width}
                 itemData={messages}
             >
