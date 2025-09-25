@@ -1,11 +1,13 @@
 'use client';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useJsonBlob } from '@/hooks/useJsonBlob';
 import { MessageBubble } from './MessageBubble';
 import { Skeleton } from '../ui/skeleton';
 import { VariableSizeList as List } from 'react-window';
 import AutoSizer from 'react-virtualized-auto-sizer';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { cn } from '@/lib/utils';
+import { Loader2 } from 'lucide-react';
 
 
 const Row = ({ index, style, data }: { index: number, style: React.CSSProperties, data: any[] }) => {
@@ -23,6 +25,7 @@ const Row = ({ index, style, data }: { index: number, style: React.CSSProperties
 export function MessageList({ chatId }: { chatId: string }) {
   const { data, loading } = useJsonBlob();
   const listRef = useRef<List>(null);
+  const [isScrolling, setIsScrolling] = useState(false);
   const isMobile = useIsMobile();
   
   const chat = data?.chats.find(c => c.id === chatId);
@@ -30,12 +33,17 @@ export function MessageList({ chatId }: { chatId: string }) {
 
   useEffect(() => {
     if (messages.length > 0 && listRef.current) {
+        setIsScrolling(true);
         // By adding a minimal timeout, we push the scrolling action to the end of the
         // event loop. This ensures that the DOM has been updated with the new messages
         // before we try to scroll, preventing a race condition.
         setTimeout(() => {
             listRef.current?.scrollToItem(messages.length - 1, 'end');
-        }, 0);
+            // Add a second timeout to remove the overlay after the scroll animation is likely complete
+            setTimeout(() => {
+                setIsScrolling(false);
+            }, 300); // 300ms should be enough for the scroll animation
+        }, 50); // A small delay to ensure rendering is complete
     }
   }, [messages, chatId]);
 
@@ -66,7 +74,12 @@ export function MessageList({ chatId }: { chatId: string }) {
   }
 
   return (
-    <div className='flex-1 w-full'>
+    <div className='flex-1 w-full relative'>
+       {isScrolling && (
+          <div className="absolute inset-0 bg-background/70 z-10 flex items-center justify-center backdrop-blur-sm">
+            <Loader2 className="animate-spin text-primary" size={32} />
+          </div>
+        )}
        <AutoSizer>
         {({ height, width }) => (
             <List
