@@ -5,7 +5,7 @@ import type { UserProfile, JsonBlobData, Chat } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 import { usePathname } from 'next/navigation';
 
-const JSONBLOB_API_URL = 'https://jsonblob.com/api/jsonBlob/1420617466761109504';
+const JSONBLOB_API_URL = process.env.NEXT_PUBLIC_JSONBLOB_API_URL || 'https://jsonblob.com/api/jsonBlob/1420617466761109504';
 
 interface AppContextType {
   user: UserProfile | null;
