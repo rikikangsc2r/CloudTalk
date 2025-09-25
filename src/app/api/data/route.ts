@@ -1,9 +1,11 @@
 import { NextResponse } from 'next/server';
 
-const JSONBLOB_API_URL = process.env.JSONBLOB_API_URL;
+// WARNING: Hardcoding URLs is not a secure practice.
+// It's recommended to use environment variables to protect sensitive information.
+const JSONBLOB_API_URL = 'YOUR_JSONBLOB_API_URL_HERE';
 
-if (!JSONBLOB_API_URL) {
-  throw new Error("JSONBLOB_API_URL environment variable is not set");
+if (!JSONBLOB_API_URL || JSONBLOB_API_URL === 'YOUR_JSONBLOB_API_URL_HERE') {
+  throw new Error("JSONBLOB_API_URL is not set in src/app/api/data/route.ts. Please replace the placeholder with your actual URL.");
 }
 
 // Set revalidate to 0 to disable caching
