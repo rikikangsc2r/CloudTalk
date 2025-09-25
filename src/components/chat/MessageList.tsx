@@ -29,14 +29,15 @@ export function MessageList({ chatId }: { chatId: string }) {
   const messages = chat?.messages?.sort((a,b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()) || [];
 
   useEffect(() => {
-    if (!loading && messages.length > 0 && listRef.current) {
-        // A short timeout ensures the list has rendered before we scroll.
-        // This prevents race conditions with rendering.
+    if (messages.length > 0 && listRef.current) {
+        // By adding a minimal timeout, we push the scrolling action to the end of the
+        // event loop. This ensures that the DOM has been updated with the new messages
+        // before we try to scroll, preventing a race condition.
         setTimeout(() => {
             listRef.current?.scrollToItem(messages.length - 1, 'end');
-        }, 100);
+        }, 0);
     }
-  }, [messages.length, chatId, loading]);
+  }, [messages, chatId]);
 
   if (loading) {
     return (
